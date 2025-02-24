@@ -18,6 +18,9 @@
     <ClCompile Include="Source\Render.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Clan.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Clan.h">
