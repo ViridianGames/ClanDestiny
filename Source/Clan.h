@@ -74,4 +74,17 @@ struct Unit
 bool canBuild(const Village& village, const std::vector<SquareTile>& map, BuildingType type, int& tileX, int& tileY);
 void buildBuilding(Village& village, BuildingType type, int tileX, int tileY);
 
+// Turn processing
+struct VillageProduction
+{
+    int food = 0;
+    int production = 0;
+    int gold = 0;
+    int knowledge = 0;
+    int worship = 0;
+};
+
+VillageProduction calculateVillageProduction(const Village& village, const Clan& owner);
+void processEndOfTurn(std::vector<Clan>& clans, std::vector<Village>& villages);
+
 #endif

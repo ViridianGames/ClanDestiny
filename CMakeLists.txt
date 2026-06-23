@@ -1,112 +1,179 @@
-cmake_minimum_required(VERSION 3.16)
-project(ClanDestiny LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.15)
+
+if(MSVC OR MSVC_IDE)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+
+project("ClanDestiny" VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ============================================================================
-# Raylib Dependency (Prebuilt - everything is in ThirdParty/raylib)
-# Follows the exact pattern used in repos/U7Revisited/CMakeLists.txt
-# ============================================================================
-set(RAYLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/include)
-set(RAYLIB_EXTERNAL_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/external/include)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 
-# Platform-specific library selection (everything lives under ThirdParty/raylib)
-if(WIN32)
-    set(RAYLIB_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/raylib.lib)
-else()
-    # Prefer static, fall back to shared (common on Linux distros / custom builds)
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/libraylib.a)
-        set(RAYLIB_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/libraylib.a)
-    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/libraylib.so)
-        set(RAYLIB_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/libraylib.so)
-    else()
-        set(RAYLIB_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/raylib/lib/libraylib.a)
+if(MSVC)
+    add_compile_options(/wd4244 /wd4305)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    add_compile_options(/W3)
+    add_compile_options($<$<CONFIG:Debug>:/ZI>)
+    add_link_options($<$<CONFIG:Debug>:/INCREMENTAL /DEBUG:FASTLINK>)
+    add_compile_options($<$<CONFIG:Release>:/Ox /GL>)
+    add_link_options($<$<CONFIG:Release>:/LTCG /OPT:REF /OPT:ICF>)
+    add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-conversion)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+        add_compile_options(-O3 -flto)
+        add_link_options(-flto -s)
     endif()
+    add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 endif()
 
-# Create imported target for the prebuilt raylib (type depends on what we found)
-if(RAYLIB_LIBRARY MATCHES "\\.(so|dylib|dll)$")
-    add_library(raylib SHARED IMPORTED)
+set(GEIST_DIR ${CMAKE_SOURCE_DIR}/Geist)
+
+set(RAYLIB_INCLUDE_DIR ${GEIST_DIR}/ThirdParty/raylib/include)
+set(RAYLIB_EXTERNAL_INCLUDE ${GEIST_DIR}/ThirdParty/raylib/external/include)
+
+if(WIN32)
+    set(RAYLIB_LIBRARY ${GEIST_DIR}/ThirdParty/raylib/lib/raylib.lib)
 else()
-    add_library(raylib STATIC IMPORTED)
+    set(RAYLIB_LIBRARY ${GEIST_DIR}/ThirdParty/raylib/lib/libraylib.a)
 endif()
 
+add_library(raylib STATIC IMPORTED)
 set_target_properties(raylib PROPERTIES
-    IMPORTED_LOCATION ${RAYLIB_LIBRARY}
-    INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_INCLUDE_DIR};${RAYLIB_EXTERNAL_INCLUDE}"
+        IMPORTED_LOCATION ${RAYLIB_LIBRARY}
+        INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_INCLUDE_DIR};${RAYLIB_EXTERNAL_INCLUDE}"
 )
 
-# nlohmann/json is header-only and currently unused by the code,
-# but the include path is kept for future-proofing / parity with the VS project.
-set(NLOHMANN_JSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/nlohmann")
+set(LUA_SOURCES
+        ${GEIST_DIR}/ThirdParty/lua/src/lapi.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lcode.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lctype.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ldebug.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ldo.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ldump.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lfunc.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lgc.c
+        ${GEIST_DIR}/ThirdParty/lua/src/llex.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lmem.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lobject.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lopcodes.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lparser.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lstate.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lstring.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ltable.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ltm.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lundump.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lvm.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lzio.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lauxlib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lbaselib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lcorolib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ldblib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/liolib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lmathlib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/loslib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lstrlib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/ltablib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/linit.c
+        ${GEIST_DIR}/ThirdParty/lua/src/loadlib.c
+        ${GEIST_DIR}/ThirdParty/lua/src/lutf8lib.c
+)
 
-# -----------------------------------------------------------------------------
-# Executable
-# -----------------------------------------------------------------------------
+add_library(lua STATIC ${LUA_SOURCES})
+target_include_directories(lua PUBLIC ${GEIST_DIR}/ThirdParty/lua/src)
+target_compile_definitions(lua PRIVATE LUA_COMPAT_5_3)
+if(WIN32)
+    target_compile_definitions(lua PRIVATE LUA_BUILD_AS_DLL)
+endif()
 
-add_executable(ClanDestiny
-    Source/main.cpp
-    Source/Clan.cpp
-    Source/Map.cpp
-    Source/Render.cpp
+if(MSVC)
+    set_property(TARGET lua PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+
+set(GEIST_SOURCES
+        ${GEIST_DIR}/Source/BaseUnits.cpp
+        ${GEIST_DIR}/Source/Config.cpp
+        ${GEIST_DIR}/Source/Engine.cpp
+        ${GEIST_DIR}/Source/Globals.cpp
+        ${GEIST_DIR}/Source/Gui.cpp
+        ${GEIST_DIR}/Source/GuiElements.cpp
+        ${GEIST_DIR}/Source/GuiManager.cpp
+        ${GEIST_DIR}/Source/InputSystem.cpp
+        ${GEIST_DIR}/Source/IO.cpp
+        ${GEIST_DIR}/Source/Logging.cpp
+        ${GEIST_DIR}/Source/ParticleSystem.cpp
+        ${GEIST_DIR}/Source/Primitives.cpp
+        ${GEIST_DIR}/Source/RaylibModel.cpp
+        ${GEIST_DIR}/Source/ResourceManager.cpp
+        ${GEIST_DIR}/Source/RNG.cpp
+        ${GEIST_DIR}/Source/ScriptingSystem.cpp
+        ${GEIST_DIR}/Source/SoundSystem.cpp
+        ${GEIST_DIR}/Source/StateMachine.cpp
+        ${GEIST_DIR}/Source/TooltipSystem.cpp
+)
+
+set(PROJECT_SOURCES
+        Source/Clan.cpp
+        Source/GameGlobals.cpp
+        Source/Main.cpp
+        Source/MainState.cpp
+        Source/Map.cpp
+        Source/Render.cpp
+)
+
+add_executable(ClanDestiny WIN32
+        ${GEIST_SOURCES}
+        ${PROJECT_SOURCES}
 )
 
 target_include_directories(ClanDestiny PRIVATE
-    "${CMAKE_SOURCE_DIR}/Source"
-    "${NLOHMANN_JSON_INCLUDE_DIR}"
+        Source
+        ${GEIST_DIR}/Source
+        ${GEIST_DIR}/ThirdParty/nlohmann
+        ${RAYLIB_EXTERNAL_INCLUDE}
 )
 
-target_link_libraries(ClanDestiny PRIVATE raylib)
+target_link_libraries(ClanDestiny PRIVATE raylib lua)
 
-# Windows system libraries required by the prebuilt raylib (matching original .vcxproj)
-if(WIN32)
-    target_link_libraries(ClanDestiny PRIVATE winmm opengl32 gdi32 user32 shell32)
+if(UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    target_link_libraries(ClanDestiny PRIVATE
+            ${X11_LIBRARIES}
+            X11::Xrandr
+            X11::Xi
+            X11::Xinerama
+            X11::Xcursor
+            pthread dl m
+    )
+elseif(WIN32)
+    target_link_libraries(ClanDestiny PRIVATE winmm)
+    set_target_properties(ClanDestiny PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
 endif()
 
-# -----------------------------------------------------------------------------
-# Assets
-# Copy the asset folders next to the built executable so relative paths work:
-#   Data/Fonts/softsquare.ttf
-#   Images/tiles.png
-# -----------------------------------------------------------------------------
-
-set(ASSET_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Redist")
-set(ASSET_DEST_DIR "$<TARGET_FILE_DIR:ClanDestiny>")
-
-add_custom_command(TARGET ClanDestiny POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${ASSET_SOURCE_DIR}/Data"   "${ASSET_DEST_DIR}/Data"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${ASSET_SOURCE_DIR}/Images" "${ASSET_DEST_DIR}/Images"
-    COMMENT "Copying game assets (Data/ and Images/) next to the executable"
-    VERBATIM
+target_compile_definitions(ClanDestiny PRIVATE
+        $<$<CONFIG:Debug>:DEBUG_MODE>
+        $<$<CONFIG:Release>:RELEASE_MODE>
 )
 
-# Put the final binary in a predictable location (build/bin/)
+set(REDIST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Redist")
+
 set_target_properties(ClanDestiny PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY "${REDIST_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${REDIST_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${REDIST_DIR}"
 )
 
-# -----------------------------------------------------------------------------
-# Compiler warnings (match spirit of the original Visual Studio project)
-# -----------------------------------------------------------------------------
-if(MSVC)
-    target_compile_options(ClanDestiny PRIVATE /W3)
+if(WIN32)
+    set_target_properties(ClanDestiny PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${REDIST_DIR}")
 else()
-    target_compile_options(ClanDestiny PRIVATE -Wall -Wextra)
+    set_target_properties(ClanDestiny PROPERTIES
+            OUTPUT_NAME_DEBUG "ClanDestiny_debug"
+            OUTPUT_NAME_RELEASE "ClanDestiny"
+    )
 endif()
 
-# -----------------------------------------------------------------------------
-# Usage notes (printed at configure time)
-# -----------------------------------------------------------------------------
-message(STATUS "ClanDestiny: To build, run:")
-message(STATUS "  mkdir -p build && cd build")
-message(STATUS "  cmake ..")
-message(STATUS "  cmake --build . --config Release")
-message(STATUS "")
-message(STATUS "Then run the game from the bin directory (assets are copied there):")
-message(STATUS "  cd bin && ./ClanDestiny")
-message(STATUS "")
-message(STATUS "Using vendored raylib from ThirdParty/raylib (no git fetch, no system package required).")
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ClanDestiny)

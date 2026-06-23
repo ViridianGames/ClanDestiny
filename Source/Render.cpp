@@ -1,12 +1,10 @@
 #include "Render.h"
 
-void drawView(RenderTexture2D& target, const std::vector<SquareTile>& map, Texture2D& tileset,
-   int& viewX, int& viewY, float& waterAnimTime, int& waterFrame,
-   const std::vector<Clan>& clans, const std::vector<Village>& villages, Font& gameFont, Font& largeFont)
+void drawView(const std::vector<SquareTile>& map, Texture2D& tileset,
+   int viewX, int viewY, float& waterAnimTime, int& waterFrame,
+   const std::vector<Clan>& clans, const std::vector<Village>& villages, Font& gameFont, Font& largeFont,
+   int selectedVillageIdx, int currentTurn)
 {
-   BeginTextureMode(target);
-   ClearBackground(BLACK);
-
    waterAnimTime += GetFrameTime();
    if (waterAnimTime >= WATER_ANIM_SPEED)
    {
@@ -110,5 +108,47 @@ void drawView(RenderTexture2D& target, const std::vector<SquareTile>& map, Textu
    DrawTextEx(gameFont, worshipText.c_str(), { float(CLAN_PANEL_X), float(yPos) }, 9, 1, WHITE);
    DrawTextEx(gameFont, worshipPerTurnText.c_str(), { float(CLAN_PANEL_X + 80), float(yPos) }, 9, 1, worshipPerTurn >= 0 ? WHITE : RED);
 
-   EndTextureMode();
+   // === Village Info Panel (below clan panel when a village is selected) ===
+   if (selectedVillageIdx >= 0 && selectedVillageIdx < (int)villages.size())
+   {
+      const Village& v = villages[selectedVillageIdx];
+      int vy = yPos + 20; // start a bit below the clan worship line
+
+      // Village header
+      std::string header = v.name + " (Pop: " + std::to_string(v.population) + ")";
+      DrawTextEx(largeFont, header.c_str(), { float(CLAN_PANEL_X), float(vy) }, 14, 1, WHITE);
+      vy += 18;
+
+      // Per-turn production (we'll show base + buildings later; for now use stored outputs if present)
+      // For immediate feedback, show the village's current output fields
+      DrawTextEx(gameFont, ("Food: " + std::to_string(v.foodProduction) + "/turn").c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 11;
+      DrawTextEx(gameFont, ("Prod: " + std::to_string(v.productionOutput) + "/turn").c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 11;
+      DrawTextEx(gameFont, ("Gold: " + std::to_string(v.goldOutput) + "/turn").c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 11;
+      DrawTextEx(gameFont, ("Know: " + std::to_string(v.knowledgeOutput) + "/turn").c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 11;
+      DrawTextEx(gameFont, ("Worship: " + std::to_string(v.worshipOutput) + "/turn").c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 14;
+
+      DrawTextEx(gameFont, ("Food Store: " + std::to_string(v.foodStorehouse)).c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+      vy += 11;
+      DrawTextEx(gameFont, ("Prod Store: " + std::to_string(v.productionStorehouse)).c_str(), { float(CLAN_PANEL_X), float(vy) }, 9, 1, WHITE);
+   }
+
+   // === End Turn Button (bottom of left panel) ===
+   const int BTN_X = 4;
+   const int BTN_Y = 330;
+   const int BTN_W = 148;
+   const int BTN_H = 20;
+
+   DrawRectangle(BTN_X, BTN_Y, BTN_W, BTN_H, DARKGRAY);
+   DrawRectangleLines(BTN_X, BTN_Y, BTN_W, BTN_H, WHITE);
+
+   std::string btnText = "End Turn (Turn " + std::to_string(currentTurn) + ")";
+   int textWidth = MeasureTextEx(gameFont, btnText.c_str(), 9, 1).x;
+   DrawTextEx(gameFont, btnText.c_str(),
+              { float(BTN_X + (BTN_W - textWidth) / 2), float(BTN_Y + 5) },
+              9, 1, WHITE);
 }

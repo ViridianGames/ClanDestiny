@@ -152,8 +152,8 @@ void generateMap(std::vector<SquareTile>& map, std::vector<Village>& villages, s
                centerVillage.y = centerY;
                centerVillage.name = clans[c].name + " Village " + std::to_string(villages.size() + 1);
                centerVillage.clanIdx = c;
-               centerVillage.population = 4; // Start with 4
-               centerVillage.workers.resize(12, false); // Max 12, all free initially
+               centerVillage.population = 1; // Start with 1 (per design)
+               centerVillage.workers.resize(MAX_VILLAGE_POPULATION, false);
                villages.push_back(centerVillage);
                clans[c].villages.push_back(villages.size() - 1);
                centerPlaced = true;
@@ -197,8 +197,8 @@ void generateMap(std::vector<SquareTile>& map, std::vector<Village>& villages, s
                   newVillage.y = y;
                   newVillage.name = clans[c].name + " Village " + std::to_string(villages.size() + 1);
                   newVillage.clanIdx = c;
-                  newVillage.population = 4; // Start with 4
-                  newVillage.workers.resize(12, false); // Max 12, all free initially
+                  newVillage.population = 1; // Start with 1 (per design)
+                  newVillage.workers.resize(MAX_VILLAGE_POPULATION, false);
                   villages.push_back(newVillage);
                   clans[c].villages.push_back(villages.size() - 1);
                   placedCount++;

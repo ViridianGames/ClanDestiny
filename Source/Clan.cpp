@@ -1,9 +1,10 @@
 #include "Clan.h"
 #include "Map.h"
+#include "Game.h"
 
 bool canBuild(const Village& village, const std::vector<SquareTile>& map, BuildingType type, int& tileX, int& tileY)
 {
-   // Check if there’s an available worker
+   // Check if there's an available worker
    bool hasFreeWorker = false;
    int freeWorkerIdx = -1;
    for (size_t i = 0; i < village.workers.size(); ++i)
@@ -15,7 +16,7 @@ bool canBuild(const Village& village, const std::vector<SquareTile>& map, Buildi
          break;
       }
    }
-   if (!hasFreeWorker || village.buildings.size() >= 8) return false; // Max 8 buildings (surrounding tiles)
+   if (!hasFreeWorker || (int)village.buildings.size() >= village.population) return false; // Max buildings = current population
 
    // Check production points
    int cost = 0;
@@ -141,4 +142,78 @@ void buildBuilding(Village& village, BuildingType type, int tileX, int tileY)
 
    // Add building
    village.buildings.push_back(building);
+}
+
+VillageProduction calculateVillageProduction(const Village& village, const Clan& owner)
+{
+    VillageProduction prod;
+    prod.food         = BASE_FOOD;
+    prod.production   = BASE_PRODUCTION;
+    prod.gold         = BASE_GOLD;
+    prod.knowledge    = BASE_KNOWLEDGE;
+    prod.worship      = BASE_WORSHIP;
+
+    bool isGlendwellers = (owner.name == "Glendwellers");
+    bool isGilded       = (owner.name == "Gilded");
+
+    for (const auto& building : village.buildings)
+    {
+        switch (building.type)
+        {
+        case BuildingType::FARM:
+            prod.food += (isGlendwellers ? 2 : 1);
+            break;
+        case BuildingType::LOGGING_CAMP:
+            prod.production += 1;
+            break;
+        case BuildingType::MINE:
+            prod.gold += (isGilded ? 2 : 1);
+            break;
+        case BuildingType::WORSHIP_SITE:
+            prod.worship += 1;
+            break;
+        case BuildingType::LIBRARY:
+            prod.knowledge += 1;
+            break;
+        }
+    }
+
+    return prod;
+}
+
+void processEndOfTurn(std::vector<Clan>& clans, std::vector<Village>& villages)
+{
+    for (size_t vIdx = 0; vIdx < villages.size(); ++vIdx)
+    {
+        Village& village = villages[vIdx];
+        if (village.clanIdx < 0 || village.clanIdx >= (int)clans.size()) continue;
+
+        Clan& owner = clans[village.clanIdx];
+        VillageProduction thisTurn = calculateVillageProduction(village, owner);
+
+        // Accumulate into village stores
+        village.foodStorehouse       += thisTurn.food;
+        village.productionStorehouse += thisTurn.production;
+
+        // Update the village's "per turn" fields for UI display
+        village.foodProduction    = thisTurn.food;
+        village.productionOutput  = thisTurn.production;
+        village.goldOutput        = thisTurn.gold;
+        village.knowledgeOutput   = thisTurn.knowledge;
+        village.worshipOutput     = thisTurn.worship;
+
+        // Accumulate global resources into the clan
+        owner.gold       += thisTurn.gold;
+        owner.knowledge  += thisTurn.knowledge;
+        owner.worship    += thisTurn.worship;
+
+        // Food growth / population increase
+        int growthThreshold = FOOD_PER_POP_GROWTH * village.population;
+        while (village.foodStorehouse >= growthThreshold && village.population < MAX_VILLAGE_POPULATION)
+        {
+            village.foodStorehouse -= growthThreshold;
+            village.population++;
+            // Note: workers vector stays size 12 for now (or we can resize if desired)
+        }
+    }
 }
